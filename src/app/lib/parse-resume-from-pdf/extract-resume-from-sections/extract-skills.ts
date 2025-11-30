@@ -29,6 +29,7 @@ export const extractSkills = (sections: ResumeSectionToLines) => {
   const skills: ResumeSkills = {
     featuredSkills,
     descriptions,
+    categories: [],
   };
 
   return { skills };

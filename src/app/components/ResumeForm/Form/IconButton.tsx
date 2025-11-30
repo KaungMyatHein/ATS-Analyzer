@@ -6,6 +6,7 @@ import {
   ArrowSmallDownIcon,
   TrashIcon,
   ListBulletIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 
 export const ShowIconButton = ({
@@ -94,6 +95,23 @@ export const BulletListIconButton = ({
         }`}
         aria-hidden="true"
       />
+      <span className="sr-only">{tooltipText}</span>
+    </IconButton>
+  );
+};
+
+export const AISuggestIconButton = ({
+  onClick,
+  tooltipText = "AI Suggest",
+  size = "small",
+}: {
+  onClick: () => void;
+  tooltipText?: string;
+  size?: "small" | "medium";
+}) => {
+  return (
+    <IconButton onClick={onClick} tooltipText={tooltipText} size={size}>
+      <SparklesIcon className={size === "small" ? "h-4 w-4 text-blue-600" : "h-6 w-6 text-blue-600"} aria-hidden="true" />
       <span className="sr-only">{tooltipText}</span>
     </IconButton>
   );

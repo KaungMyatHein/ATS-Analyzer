@@ -6,6 +6,7 @@ export interface Settings {
   fontFamily: string;
   fontSize: string;
   documentSize: string;
+  style: "standard" | "professional" | "elegant" | "blog";
   formToShow: {
     workExperiences: boolean;
     educations: boolean;
@@ -46,6 +47,7 @@ export const initialSettings: Settings = {
   fontFamily: DEFAULT_FONT_FAMILY,
   fontSize: DEFAULT_FONT_SIZE,
   documentSize: "Letter",
+  style: "standard",
   formToShow: {
     workExperiences: true,
     educations: true,
@@ -78,7 +80,7 @@ export const settingsSlice = createSlice({
       action: PayloadAction<{ field: GeneralSetting; value: string }>
     ) => {
       const { field, value } = action.payload;
-      draft[field] = value;
+      (draft as any)[field] = value;
     },
     changeShowForm: (
       draft,

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ResumeIframeCSR } from "components/Resume/ResumeIFrame";
 import { ResumePDF } from "components/Resume/ResumePDF";
 import {
@@ -10,7 +10,7 @@ import { FlexboxSpacer } from "components/FlexboxSpacer";
 import { useAppSelector } from "lib/redux/hooks";
 import { selectResume } from "lib/redux/resumeSlice";
 import { selectSettings } from "lib/redux/settingsSlice";
-import { DEBUG_RESUME_PDF_FLAG } from "lib/constants";
+import { DEBUG_RESUME_PDF_FLAG, ENABLE_PDF_VIEWER } from "lib/constants";
 import {
   useRegisterReactPDFFont,
   useRegisterReactPDFHyphenationCallback,
@@ -21,9 +21,32 @@ export const Resume = () => {
   const [scale, setScale] = useState(0.8);
   const resume = useAppSelector(selectResume);
   const settings = useAppSelector(selectSettings);
-  const document = useMemo(
-    () => <ResumePDF resume={resume} settings={settings} isPDF={true} />,
-    [resume, settings]
+  const [highlightSkills, setHighlightSkills] = useState<string[]>([]);
+  
+  // Load and refresh highlights when the page gains focus
+  // and when navigating back from analyzer
+  useEffect(() => {
+    const load = () => {
+      try {
+        const raw = localStorage.getItem("ats_matching_skills");
+        const arr = raw ? JSON.parse(raw) : [];
+        setHighlightSkills(Array.isArray(arr) ? arr.filter(Boolean) : []);
+      } catch {
+        setHighlightSkills([]);
+      }
+    };
+    load();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    const onAtsUpdate = () => load();
+    window.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("ats_matching_skills_updated", onAtsUpdate as EventListener);
+    return () => window.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+  const resumeDocument = useMemo(
+    () => <ResumePDF resume={resume} settings={settings} isPDF={true} highlightSkills={highlightSkills} />,
+    [resume, settings, highlightSkills]
   );
 
   useRegisterReactPDFFont();
@@ -35,16 +58,17 @@ export const Resume = () => {
       <div className="relative flex justify-center md:justify-start">
         <FlexboxSpacer maxWidth={50} className="hidden md:block" />
         <div className="relative">
-          <section className="h-[calc(100vh-var(--top-nav-bar-height)-var(--resume-control-bar-height))] overflow-hidden md:p-[var(--resume-padding)]">
+          <section className="h-[calc(100vh-var(--top-nav-bar-height)-var(--resume-control-bar-height))] overflow-auto md:p-[var(--resume-padding)]">
             <ResumeIframeCSR
               documentSize={settings.documentSize}
               scale={scale}
-              enablePDFViewer={DEBUG_RESUME_PDF_FLAG}
+              enablePDFViewer={ENABLE_PDF_VIEWER}
             >
               <ResumePDF
                 resume={resume}
                 settings={settings}
-                isPDF={DEBUG_RESUME_PDF_FLAG}
+                isPDF={ENABLE_PDF_VIEWER}
+                highlightSkills={highlightSkills}
               />
             </ResumeIframeCSR>
           </section>
@@ -52,7 +76,7 @@ export const Resume = () => {
             scale={scale}
             setScale={setScale}
             documentSize={settings.documentSize}
-            document={document}
+            document={resumeDocument}
             fileName={resume.profile.name + " - Resume"}
           />
         </div>

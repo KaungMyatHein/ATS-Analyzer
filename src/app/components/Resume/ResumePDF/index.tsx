@@ -30,10 +30,16 @@ export const ResumePDF = ({
   resume,
   settings,
   isPDF = false,
+  highlightSkills = [],
+  highlightExactSkills = [],
+  highlightFlexSkills = [],
 }: {
   resume: Resume;
   settings: Settings;
   isPDF?: boolean;
+  highlightSkills?: string[];
+  highlightExactSkills?: string[];
+  highlightFlexSkills?: string[];
 }) => {
   const { profile, workExperiences, educations, projects, skills, custom } =
     resume;
@@ -46,6 +52,7 @@ export const ResumePDF = ({
     formToShow,
     formsOrder,
     showBulletPoints,
+    style,
   } = settings;
   const themeColor = settings.themeColor || DEFAULT_FONT_COLOR;
 
@@ -57,6 +64,10 @@ export const ResumePDF = ({
         heading={formToHeading["workExperiences"]}
         workExperiences={workExperiences}
         themeColor={themeColor}
+        style={style}
+        highlightSkills={highlightSkills}
+        highlightExactSkills={highlightExactSkills}
+        highlightFlexSkills={highlightFlexSkills}
       />
     ),
     educations: () => (
@@ -65,6 +76,10 @@ export const ResumePDF = ({
         educations={educations}
         themeColor={themeColor}
         showBulletPoints={showBulletPoints["educations"]}
+        style={style}
+        highlightSkills={highlightSkills}
+        highlightExactSkills={highlightExactSkills}
+        highlightFlexSkills={highlightFlexSkills}
       />
     ),
     projects: () => (
@@ -72,6 +87,10 @@ export const ResumePDF = ({
         heading={formToHeading["projects"]}
         projects={projects}
         themeColor={themeColor}
+        style={style}
+        highlightSkills={highlightSkills}
+        highlightExactSkills={highlightExactSkills}
+        highlightFlexSkills={highlightFlexSkills}
       />
     ),
     skills: () => (
@@ -80,6 +99,10 @@ export const ResumePDF = ({
         skills={skills}
         themeColor={themeColor}
         showBulletPoints={showBulletPoints["skills"]}
+        style={style}
+        highlightSkills={highlightSkills}
+        highlightExactSkills={highlightExactSkills}
+        highlightFlexSkills={highlightFlexSkills}
       />
     ),
     custom: () => (
@@ -88,9 +111,16 @@ export const ResumePDF = ({
         custom={custom}
         themeColor={themeColor}
         showBulletPoints={showBulletPoints["custom"]}
+        style={style}
+        highlightSkills={highlightSkills}
+        highlightExactSkills={highlightExactSkills}
+        highlightFlexSkills={highlightFlexSkills}
       />
     ),
   };
+
+  const isElegant = style === "elegant";
+  const isBlog = style === "blog";
 
   return (
     <>
@@ -115,19 +145,98 @@ export const ResumePDF = ({
           )}
           <View
             style={{
-              ...styles.flexCol,
               padding: `${spacing[0]} ${spacing[20]}`,
+              display: "flex",
+              flexDirection: isElegant ? "row" : "column",
+              gap: isElegant ? spacing["10"] : undefined,
             }}
           >
-            <ResumePDFProfile
-              profile={profile}
-              themeColor={themeColor}
-              isPDF={isPDF}
-            />
-            {showFormsOrder.map((form) => {
-              const Component = formTypeToComponent[form];
-              return <Component key={form} />;
-            })}
+            {isElegant ? (
+              <>
+                {/* Left Sidebar */}
+                <View style={{ width: "30%", display: "flex", flexDirection: "column" }}>
+                  <ResumePDFProfile
+                    profile={profile}
+                    themeColor={themeColor}
+                    isPDF={isPDF}
+                    style={style}
+                    type="sidebar"
+                  />
+                  <ResumePDFSkills
+                    heading={formToHeading["skills"]}
+                    skills={skills}
+                    themeColor={themeColor}
+                    showBulletPoints={showBulletPoints["skills"]}
+                    style={style}
+                    highlightSkills={highlightSkills}
+                    highlightExactSkills={highlightExactSkills}
+                    highlightFlexSkills={highlightFlexSkills}
+                  />
+                  <ResumePDFEducation
+                    heading={formToHeading["educations"]}
+                    educations={educations}
+                    themeColor={themeColor}
+                    showBulletPoints={showBulletPoints["educations"]}
+                    style={style}
+                    highlightSkills={highlightSkills}
+                    highlightExactSkills={highlightExactSkills}
+                    highlightFlexSkills={highlightFlexSkills}
+                  />
+                  <ResumePDFCustom
+                    heading={formToHeading["custom"]}
+                    custom={custom}
+                    themeColor={themeColor}
+                    showBulletPoints={showBulletPoints["custom"]}
+                    style={style}
+                    highlightSkills={highlightSkills}
+                    highlightExactSkills={highlightExactSkills}
+                    highlightFlexSkills={highlightFlexSkills}
+                  />
+                </View>
+
+                {/* Right Main Content */}
+                <View style={{ width: "70%", display: "flex", flexDirection: "column" }}>
+                  <ResumePDFProfile
+                    profile={profile}
+                    themeColor={themeColor}
+                    isPDF={isPDF}
+                    style={style}
+                    type="main"
+                  />
+                  <ResumePDFWorkExperience
+                    heading={formToHeading["workExperiences"]}
+                    workExperiences={workExperiences}
+                    themeColor={themeColor}
+                    style={style}
+                    highlightSkills={highlightSkills}
+                    highlightExactSkills={highlightExactSkills}
+                    highlightFlexSkills={highlightFlexSkills}
+                  />
+                  <ResumePDFProject
+                    heading={formToHeading["projects"]}
+                    projects={projects}
+                    themeColor={themeColor}
+                    style={style}
+                    highlightSkills={highlightSkills}
+                    highlightExactSkills={highlightExactSkills}
+                    highlightFlexSkills={highlightFlexSkills}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <ResumePDFProfile
+                  profile={profile}
+                  themeColor={themeColor}
+                  isPDF={isPDF}
+                  style={style}
+                />
+                {showFormsOrder.map((form) => {
+                  const Component = formTypeToComponent[form];
+                  return <Component key={form} />;
+                })}
+              </>
+            )}
           </View>
         </Page>
       </Document>

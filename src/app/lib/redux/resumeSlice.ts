@@ -46,8 +46,9 @@ export const initialFeaturedSkills: FeaturedSkill[] = Array(6).fill({
   ...initialFeaturedSkill,
 });
 export const initialSkills: ResumeSkills = {
-  featuredSkills: initialFeaturedSkills,
+  featuredSkills: Array(6).fill({ skill: "", rating: 0 }),
   descriptions: [],
+  categories: [],
 };
 
 export const initialCustom = {
@@ -67,12 +68,12 @@ export const initialResumeState: Resume = {
 export type CreateChangeActionWithDescriptions<T> = {
   idx: number;
 } & (
-  | {
+    | {
       field: Exclude<keyof T, "descriptions">;
       value: string;
     }
-  | { field: "descriptions"; value: string[] }
-);
+    | { field: "descriptions"; value: string[] }
+  );
 
 export const resumeSlice = createSlice({
   name: "resume",
@@ -115,23 +116,30 @@ export const resumeSlice = createSlice({
       draft,
       action: PayloadAction<
         | { field: "descriptions"; value: string[] }
+        | { field: "categories"; value: import("lib/redux/types").SkillCategory[] }
+        | { field: "featuredSkills"; value: import("lib/redux/types").FeaturedSkill[] }
         | {
-            field: "featuredSkills";
-            idx: number;
-            skill: string;
-            rating: number;
-          }
+          field: "featuredSkills";
+          idx: number;
+          skill: string;
+          rating: number;
+        }
       >
     ) => {
       const { field } = action.payload;
       if (field === "descriptions") {
-        const { value } = action.payload;
-        draft.skills.descriptions = value;
-      } else {
-        const { idx, skill, rating } = action.payload;
-        const featuredSkill = draft.skills.featuredSkills[idx];
-        featuredSkill.skill = skill;
-        featuredSkill.rating = rating;
+        draft.skills.descriptions = action.payload.value;
+      } else if (field === "categories") {
+        draft.skills.categories = action.payload.value as any;
+      } else if (field === "featuredSkills") {
+        if ("value" in action.payload) {
+          draft.skills.featuredSkills = action.payload.value;
+        } else {
+          const { idx, skill, rating } = action.payload;
+          if (idx !== undefined) {
+            draft.skills.featuredSkills[idx] = { skill, rating };
+          }
+        }
       }
     },
     changeCustom: (

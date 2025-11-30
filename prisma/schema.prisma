@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  passwordHash String   @map("password_hash")
+  geminiApiKey String?  @map("gemini_api_key")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  resumes      Resume[]
+  savedJobs    SavedJob[]
+
+  @@map("users")
+}
+
+model Resume {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String   @default("Untitled Resume")
+  data      String   @default("{}") // JSON stored as string
+  settings  String   @default("{}") // JSON stored as string
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variants  SavedJob[] @relation("ResumeSavedJobVariants")
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model SavedJob {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  company          String
+  position         String
+  link             String?
+  jd               String
+  result           String   @default("{}") // JSON stored as string
+  matchScore       Int?
+  matchScoreFlex   Int?
+  matchScorePhrase Int?
+  status           String   @default("pending")
+  variantResumeId  String?  @map("variant_resume_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variantResume    Resume?  @relation("ResumeSavedJobVariants", fields: [variantResumeId], references: [id])
+
+  @@index([userId])
+  @@map("saved_jobs")
+}

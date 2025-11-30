@@ -42,7 +42,7 @@ const getIframeInitialContent = (isA4: boolean) => {
       ${allFontFamiliesFontFaces}
     </style>
   </head>
-  <body style='overflow: hidden; width: ${width}pt; margin: 0; padding: 0; -webkit-text-size-adjust:none;'>
+  <body style='width: ${width}pt; margin: 0; padding: 0; -webkit-text-size-adjust:none;'>
     <div></div>
   </body>
 </html>`;
@@ -83,24 +83,20 @@ const ResumeIframe = ({
     <div
       style={{
         maxWidth: `${width * scale}px`,
-        maxHeight: `${height * scale}px`,
       }}
     >
-      {/* There is an outer div and an inner div here. The inner div sets the iframe width and uses transform scale to zoom in/out the resume iframe.
-        While zooming out or scaling down via transform, the element appears smaller but still occupies the same width/height. Therefore, we use the 
-        outer div to restrict the max width & height proportionally */}
       <div
         style={{
           width: `${width}px`,
-          height: `${height}px`,
+          minHeight: `${height}px`,
           transform: `scale(${scale})`,
+          transformOrigin: 'top left',
         }}
-        className={`origin-top-left bg-white shadow-lg`}
+        className={`bg-white shadow-lg`}
       >
         <Frame
-          style={{ width: "100%", height: "100%" }}
+          style={{ width: "100%", height: "auto", minHeight: `${height}px` }}
           initialContent={iframeInitialContent}
-          // key is used to force component to re-mount when document size changes
           key={isA4 ? "A4" : "LETTER"}
         >
           {children}

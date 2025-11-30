@@ -83,6 +83,7 @@ export const END_HOME_RESUME: Resume = {
       "Tech: React Hooks, GraphQL, Node.js, SQL, Postgres, NoSql, Redis, REST API, Git",
       "Soft: Teamwork, Creative Problem Solving, Communication, Learning Mindset, Agile",
     ],
+    categories: [],
   },
   custom: {
     descriptions: [],
@@ -102,6 +103,7 @@ export const START_HOME_RESUME: Resume = {
       rating: item.rating,
     })),
     descriptions: [],
+    categories: [],
   },
   custom: {
     descriptions: [],

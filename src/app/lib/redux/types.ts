@@ -5,6 +5,7 @@ export interface ResumeProfile {
   url: string;
   summary: string;
   location: string;
+  picture?: string;
 }
 
 export interface ResumeWorkExperience {
@@ -28,14 +29,22 @@ export interface ResumeProject {
   descriptions: string[];
 }
 
+
 export interface FeaturedSkill {
   skill: string;
   rating: number;
 }
 
+export interface SkillCategory {
+  category: string;
+  skills: string[];
+  highlights: string[]; // bullet points for highlights
+}
+
 export interface ResumeSkills {
   featuredSkills: FeaturedSkill[];
   descriptions: string[];
+  categories: SkillCategory[]; // New field for category-based skills
 }
 
 export interface ResumeCustom {

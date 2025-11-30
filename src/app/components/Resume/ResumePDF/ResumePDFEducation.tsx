@@ -12,14 +12,25 @@ export const ResumePDFEducation = ({
   educations,
   themeColor,
   showBulletPoints,
+  style,
+  highlightSkills = [],
+  highlightExactSkills = [],
+  highlightFlexSkills = [],
 }: {
   heading: string;
   educations: ResumeEducation[];
   themeColor: string;
   showBulletPoints: boolean;
+  style?: string;
+  highlightSkills?: string[];
+  highlightExactSkills?: string[];
+  highlightFlexSkills?: string[];
 }) => {
+  const isBlog = style === "blog";
+  const textStyle = isBlog ? { fontFamily: "Times-Roman", lineHeight: "1.6" } : {};
+
   return (
-    <ResumePDFSection themeColor={themeColor} heading={heading}>
+    <ResumePDFSection themeColor={themeColor} heading={heading} resumeStyle={style}>
       {educations.map(
         ({ school, degree, date, gpa, descriptions = [] }, idx) => {
           // Hide school name if it is the same as the previous school
@@ -30,7 +41,12 @@ export const ResumePDFEducation = ({
           return (
             <View key={idx}>
               {!hideSchoolName && (
-                <ResumePDFText bold={true}>{school}</ResumePDFText>
+                <ResumePDFText
+                  style={isBlog ? { ...textStyle, fontFamily: "Times-Bold" } : textStyle}
+                  bold={true}
+                >
+                  {school}
+                </ResumePDFText>
               )}
               <View
                 style={{
@@ -40,19 +56,23 @@ export const ResumePDFEducation = ({
                     : spacing["1.5"],
                 }}
               >
-                <ResumePDFText>{`${
-                  gpa
-                    ? `${degree} - ${Number(gpa) ? gpa + " GPA" : gpa}`
-                    : degree
-                }`}</ResumePDFText>
-                <ResumePDFText>{date}</ResumePDFText>
+                <ResumePDFText style={textStyle}>{`${gpa
+                  ? `${degree} - ${Number(gpa) ? gpa + " GPA" : gpa}`
+                  : degree
+                  }`}</ResumePDFText>
+                <ResumePDFText style={{ ...textStyle, fontStyle: isBlog ? "italic" : undefined, color: isBlog ? "#737373" : undefined }}>{date}</ResumePDFText>
               </View>
               {showDescriptions && (
                 <View style={{ ...styles.flexCol, marginTop: spacing["1.5"] }}>
-                  <ResumePDFBulletList
-                    items={descriptions}
-                    showBulletPoints={showBulletPoints}
-                  />
+                <ResumePDFBulletList
+                  items={descriptions}
+                  showBulletPoints={showBulletPoints}
+                  style={textStyle}
+                  highlightSkills={highlightSkills}
+                  highlightExactSkills={highlightExactSkills}
+                  highlightFlexSkills={highlightFlexSkills}
+                  highlightColor={themeColor}
+                />
                 </View>
               )}
             </View>

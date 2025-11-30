@@ -1,9 +1,9 @@
 "use client";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import logoSrc from "public/logo.svg";
 import { cx } from "lib/cx";
+import logoSrc from "public/Love.png";
+import { LoginButton } from "components/Auth/LoginButton";
 
 export const TopNavBar = () => {
   const pathName = usePathname();
@@ -18,22 +18,20 @@ export const TopNavBar = () => {
       )}
     >
       <div className="flex h-10 w-full items-center justify-between">
-        <Link href="/">
-          <span className="sr-only">OpenResume</span>
-          <Image
-            src={logoSrc}
-            alt="OpenResume Logo"
-            className="h-8 w-full"
-            priority
-          />
+        <Link href="/" className="flex items-center gap-2">
+          <img src={logoSrc.src} alt="logo" className="h-10 w-10" />
+          <span className="text-base font-semibold text-gray-900">Harry's Brain Resume Builder</span>
         </Link>
         <nav
           aria-label="Site Nav Bar"
           className="flex items-center gap-2 text-sm font-medium"
         >
           {[
+            ["/dashboard", "Dashboard"],
             ["/resume-builder", "Builder"],
-            ["/resume-parser", "Parser"],
+            ["/ats-analyzer", "ATS Analyzer"],
+            ["/saved-jobs", "Saved Jobs"],
+            ["/settings", "Settings"],
           ].map(([href, text]) => (
             <Link
               key={text}
@@ -43,14 +41,8 @@ export const TopNavBar = () => {
               {text}
             </Link>
           ))}
-          <div className="ml-1 mt-1">
-            <iframe
-              src="https://ghbtns.com/github-btn.html?user=xitanggg&repo=open-resume&type=star&count=true"
-              width="100"
-              height="20"
-              className="overflow-hidden border-none"
-              title="GitHub"
-            />
+          <div className="ml-4">
+            <LoginButton />
           </div>
         </nav>
       </div>

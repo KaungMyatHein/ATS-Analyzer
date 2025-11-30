@@ -7,6 +7,7 @@ import {
   FontFamilySelectionsCSR,
   FontSizeSelections,
 } from "components/ResumeForm/ThemeForm/Selection";
+import { ResumeStyleSelections } from "components/ResumeForm/ThemeForm/ResumeStyleSelections";
 import {
   changeSettings,
   DEFAULT_THEME_COLOR,
@@ -91,6 +92,14 @@ export const ThemeForm = () => {
           <DocumentSizeSelections
             themeColor={themeColor}
             selectedDocumentSize={documentSize}
+            handleSettingsChange={handleSettingsChange}
+          />
+        </div>
+        <div>
+          <InputGroupWrapper label="Resume Style" />
+          <ResumeStyleSelections
+            themeColor={themeColor}
+            selectedStyle={settings.style}
             handleSettingsChange={handleSettingsChange}
           />
         </div>

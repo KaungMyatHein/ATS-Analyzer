@@ -3,17 +3,23 @@ import {
   Input,
   BulletListTextarea,
 } from "components/ResumeForm/Form/InputGroup";
+import { AISuggestIconButton } from "components/ResumeForm/Form/IconButton";
 import type { CreateHandleChangeArgsWithDescriptions } from "components/ResumeForm/types";
 import { useAppDispatch, useAppSelector } from "lib/redux/hooks";
 import {
   changeWorkExperiences,
   selectWorkExperiences,
 } from "lib/redux/resumeSlice";
+import { selectResume } from "lib/redux/resumeSlice";
 import type { ResumeWorkExperience } from "lib/redux/types";
+import { useState } from "react";
 
 export const WorkExperiencesForm = () => {
   const workExperiences = useAppSelector(selectWorkExperiences);
   const dispatch = useAppDispatch();
+  const fullResume = useAppSelector(selectResume);
+  const [suggestLoadingIdx, setSuggestLoadingIdx] = useState<number | null>(null);
+  const [suggestErrorIdx, setSuggestErrorIdx] = useState<{ [k: number]: string }>({});
 
   const showDelete = workExperiences.length > 1;
 
@@ -68,14 +74,55 @@ export const WorkExperiencesForm = () => {
               value={date}
               onChange={handleWorkExperienceChange}
             />
-            <BulletListTextarea
-              label="Description"
-              labelClassName="col-span-full"
-              name="descriptions"
-              placeholder="Bullet points"
-              value={descriptions}
-              onChange={handleWorkExperienceChange}
-            />
+            <div className="relative col-span-full">
+              <BulletListTextarea
+                label="Description"
+                labelClassName="col-span-full"
+                name="descriptions"
+                placeholder="Bullet points"
+                value={descriptions}
+                onChange={handleWorkExperienceChange}
+              />
+              <div className="absolute left-[9.3rem] top-[0.07rem]">
+                <AISuggestIconButton
+                  tooltipText={suggestLoadingIdx === idx ? "Generating..." : (suggestErrorIdx[idx] || "AI Suggest")}
+                  onClick={async () => {
+                    try {
+                      setSuggestErrorIdx((m) => ({ ...m, [idx]: "" }));
+                      setSuggestLoadingIdx(idx);
+                      const resp = await fetch("/api/ai/suggest", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          field: "work.descriptions",
+                          context: { company, jobTitle, date },
+                          resume: fullResume,
+                        }),
+                      });
+                      const data = await resp.json();
+                      if (!resp.ok) {
+                        const msg = data?.error || "Suggestion failed";
+                        setSuggestErrorIdx((m) => ({ ...m, [idx]: msg }));
+                      } else {
+                        const bullets = Array.isArray(data?.suggestion?.bullets)
+                          ? data.suggestion.bullets.filter(Boolean)
+                          : [];
+                        if (bullets.length) {
+                          handleWorkExperienceChange("descriptions", bullets as any);
+                        }
+                      }
+                    } catch {
+                      setSuggestErrorIdx((m) => ({ ...m, [idx]: "Network error" }));
+                    } finally {
+                      setSuggestLoadingIdx(null);
+                    }
+                  }}
+                />
+              </div>
+              {suggestErrorIdx[idx] && (
+                <div className="absolute left-[12rem] top-[0.1rem] text-xs text-red-600">{suggestErrorIdx[idx]}</div>
+              )}
+            </div>
           </FormSection>
         );
       })}
