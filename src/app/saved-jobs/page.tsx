@@ -85,6 +85,10 @@ function PageBody() {
   const [reanalyzing, setReanalyzing] = useState(false);
   const [recentlyAddedSkills, setRecentlyAddedSkills] = useState<string[]>([]);
   const [needsReanalyze, setNeedsReanalyze] = useState(false);
+  const [expSuggestPairs, setExpSuggestPairs] = useState<{ company: string; jobTitle: string; date: string; before: string[]; after: string[] }[]>([]);
+  const [expSuggestLoading, setExpSuggestLoading] = useState(false);
+  const [expSuggestError, setExpSuggestError] = useState("");
+  const [reanalyzeError, setReanalyzeError] = useState("");
   useRegisterReactPDFFont();
   useRegisterReactPDFHyphenationCallback(settings.fontFamily);
   const [baseResumeId, setBaseResumeId] = useState<string | null>(null);
@@ -208,6 +212,13 @@ function PageBody() {
   }, [selected]);
 
   useEffect(() => {
+    try {
+      const jd = selected?.jd || "";
+      localStorage.setItem("open-resume-last-jd", jd);
+    } catch {}
+  }, [selected]);
+
+  useEffect(() => {
     const loadVariantForSelected = async () => {
       try {
         const id = (selected as any)?.variantResumeId as string | undefined;
@@ -266,6 +277,7 @@ function PageBody() {
   const reanalyze = async () => {
     if (!selected) return;
     setReanalyzing(true);
+    setReanalyzeError("");
     try {
       const resp = await fetch("/api/ats/analyze", {
         method: "POST",
@@ -303,10 +315,99 @@ function PageBody() {
         } catch {}
         setNeedsReanalyze(false);
         setRecentlyAddedSkills([]);
+        // Auto-refresh experience suggestions to keep them visible and up-to-date
+        try { await generateExperienceSuggestions(); } catch {}
+      } else {
+        const det = typeof (data?.details) === "string" ? data.details : "";
+        const msg = (typeof data?.error === "string" && data.error) ? (det ? `${data.error}: ${det}` : data.error) : "Reanalyze failed";
+        setReanalyzeError(msg);
+        console.error("[ATS Analyze] Request failed", { status: resp.status, error: data?.error, details: data?.details });
       }
-    } catch {}
+    } catch {
+      setReanalyzeError("Network error");
+      console.error("[ATS Analyze] Network error", { id: selected?.id });
+    }
     setReanalyzing(false);
   };
+
+  const generateExperienceSuggestions = async () => {
+    if (!selected) return;
+    try {
+      setExpSuggestError("");
+      setExpSuggestLoading(true);
+      const exps = Array.isArray((previewResume as any)?.workExperiences) ? (previewResume as any).workExperiences : [];
+      const results: { company: string; jobTitle: string; date: string; before: string[]; after: string[] }[] = [];
+      const trim = (s: string, n: number) => {
+        const t = String(s || "").trim();
+        if (t.length <= n) return t;
+        const cut = t.slice(0, n);
+        const lastSpace = cut.lastIndexOf(" ");
+        return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim() + "…";
+      };
+      const jdTrim = trim(selected.jd || "", 2000);
+      for (const exp of exps) {
+        const company = exp?.company || "";
+        const jobTitle = exp?.jobTitle || "";
+        const date = exp?.date || "";
+        const before = Array.isArray(exp?.descriptions)
+          ? exp.descriptions
+              .filter(Boolean)
+              .slice(0, 6)
+              .map((b: string) => trim(b, 160))
+          : [];
+        let after: string[] = [];
+        try {
+          const resp = await fetch("/api/ai/suggest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              field: "work.descriptions",
+              context: { company, jobTitle, date, before, jd: jdTrim, jobDescription: jdTrim },
+            }),
+          });
+          const data = await resp.json();
+          if (resp.ok) {
+            after = Array.isArray(data?.suggestion?.bullets) ? data.suggestion.bullets.filter(Boolean) : [];
+          } else {
+            if (resp.status === 400 && typeof data?.error === "string" && data.error.includes("Missing Gemini API key")) {
+              setExpSuggestError("Missing Gemini API key");
+            } else {
+              const det = typeof (data?.details) === "string" ? data.details : "";
+              const msg = (typeof data?.error === "string" && data.error) ? (det ? `${data.error}: ${det}` : data.error) : "Suggestion failed";
+              setExpSuggestError(msg);
+              console.error("[AI Suggest] Request failed", { status: resp.status, error: data?.error, details: data?.details, company, jobTitle });
+            }
+          }
+        } catch {
+          setExpSuggestError("Network error");
+          console.error("[AI Suggest] Network error", { company, jobTitle });
+        }
+        results.push({ company, jobTitle, date, before, after });
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      setExpSuggestPairs(results);
+    } catch {
+      setExpSuggestError("Network error");
+    } finally {
+      setExpSuggestLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const exps = Array.isArray((previewResume as any)?.workExperiences) ? (previewResume as any).workExperiences : [];
+    if (!exps.length) return;
+    setExpSuggestPairs((prev) => {
+      if (prev.length) return prev; // keep existing suggestions
+      const init = exps.map((exp: any) => ({
+        company: exp?.company || "",
+        jobTitle: exp?.jobTitle || "",
+        date: exp?.date || "",
+        before: Array.isArray(exp?.descriptions) ? exp.descriptions.filter(Boolean) : [],
+        after: [],
+      }));
+      return init;
+    });
+  }, [previewResume]);
 
   const toggleMissing = (skill: string) => {
     setSelectedMissing((prev) => {
@@ -666,6 +767,7 @@ function PageBody() {
                     <div className="text-sm font-medium text-gray-700">Job</div>
                     <div className="mt-1 text-sm text-gray-800">{selected.company} — {selected.position}</div>
                     <div className="mt-1 text-xs text-gray-500 break-all">{selected.link || "No link"}</div>
+                    <div className="mt-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-[11px] text-blue-700">AI suggestions in Work Experiences will use this job description</div>
                   </div>
                   <div className="rounded-md border border-gray-200 p-4">
                     <div className="text-sm font-medium text-gray-700">ATS Score</div>
@@ -681,6 +783,14 @@ function PageBody() {
                         {reanalyzing ? "Reanalyzing..." : "Reanalyze"}
                       </button>
                     </div>
+                    {reanalyzeError && (
+                      <div className="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-800">
+                        {reanalyzeError}
+                        {reanalyzeError.includes("Gemini API key") && (
+                          <span> — <a href="/settings" className="text-blue-700 underline">Add key in Settings</a></span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-md border border-gray-200 p-4">
                     <div className="text-sm font-medium text-gray-700">Matched Skills (Exact)</div>
@@ -877,6 +987,61 @@ function PageBody() {
                   <div className="rounded-md border border-gray-200 p-4">
                     <div className="text-sm font-medium text-gray-700">Suggestions for Resume</div>
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800">{result.feedback || "No suggestions"}</p>
+                  </div>
+                  <div className="rounded-md border border-gray-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium text-gray-700">Experience Suggestions</div>
+                      <button
+                        className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        onClick={generateExperienceSuggestions}
+                        disabled={expSuggestLoading}
+                      >
+                        {expSuggestLoading ? "Generating..." : "Generate"}
+                      </button>
+                    </div>
+                    {expSuggestError && (
+                      <div className="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-800">
+                        {expSuggestError}
+                        {expSuggestError.includes("Gemini API key") && (
+                          <span> — <a href="/settings" className="text-blue-700 underline">Add key in Settings</a></span>
+                        )}
+                      </div>
+                    )}
+                    {(!expSuggestPairs.length && !expSuggestLoading && !expSuggestError) && (
+                      <div className="mt-2 text-xs text-gray-600">No experience suggestions yet</div>
+                    )}
+                    {expSuggestPairs.length > 0 && (
+                      <div className="mt-2 space-y-3">
+                        {expSuggestPairs.map((it, idx) => (
+                          <div key={`exp-pair-${idx}`} className="rounded-md border border-gray-200 p-3">
+                            <div className="text-sm font-medium text-gray-800">{it.company} — {it.jobTitle}</div>
+                            <div className="text-[11px] text-gray-600">{it.date}</div>
+                            <div className="mt-2 grid gap-3 md:grid-cols-2">
+                              <div>
+                                <div className="text-xs font-medium text-gray-700">Before</div>
+                                {it.before.length === 0 ? (
+                                  <div className="mt-1 text-xs text-gray-500">No bullets</div>
+                                ) : (
+                                  <ul className="mt-1 list-disc pl-5 text-sm text-gray-800">
+                                    {it.before.map((b, i) => (<li key={`exp-bef-${idx}-${i}`}>{b}</li>))}
+                                  </ul>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-xs font-medium text-gray-700">After</div>
+                                {it.after.length === 0 ? (
+                                  <div className="mt-1 text-xs text-gray-500">No suggestions</div>
+                                ) : (
+                                  <ul className="mt-1 list-disc pl-5 text-sm text-gray-800">
+                                    {it.after.map((b, i) => (<li key={`exp-aft-${idx}-${i}`}>{b}</li>))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

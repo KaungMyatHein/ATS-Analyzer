@@ -74,13 +74,29 @@ export async function POST(req: NextRequest) {
     if (!company || !position || !jd || !result) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+    const normCompany = String(company).trim();
+    const normPosition = String(position).trim();
+    const normLink = (typeof link === "string" && link.trim().length) ? link.trim() : null;
+
+    const duplicate = await prisma.savedJob.findFirst({
+      where: {
+        userId: session.user.id,
+        company: normCompany,
+        position: normPosition,
+        link: normLink,
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return NextResponse.json({ error: "Duplicate saved job: same company, position, and link" }, { status: 409 });
+    }
 
     const created = await prisma.savedJob.create({
       data: {
         userId: session.user.id,
-        company,
-        position,
-        link: link || null,
+        company: normCompany,
+        position: normPosition,
+        link: normLink,
         jd,
         result: JSON.stringify(result || {}),
         matchScore: typeof result?.matchScore === "number" ? Math.round(result.matchScore) : (typeof result?.flex?.matchScore === "number" ? Math.round(result.flex.matchScore) : null),

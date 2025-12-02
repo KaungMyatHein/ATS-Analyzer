@@ -194,6 +194,12 @@ function PageBody() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<any>(null);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem("open-resume-last-jd", jd || "");
+    } catch {}
+  }, [jd]);
+
   useRegisterReactPDFFont();
   useRegisterReactPDFHyphenationCallback(settings.fontFamily);
 

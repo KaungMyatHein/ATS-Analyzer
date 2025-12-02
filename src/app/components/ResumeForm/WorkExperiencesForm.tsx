@@ -90,12 +90,16 @@ export const WorkExperiencesForm = () => {
                     try {
                       setSuggestErrorIdx((m) => ({ ...m, [idx]: "" }));
                       setSuggestLoadingIdx(idx);
+                      let lastJd = "";
+                      try {
+                        lastJd = localStorage.getItem("open-resume-last-jd") || "";
+                      } catch {}
                       const resp = await fetch("/api/ai/suggest", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                           field: "work.descriptions",
-                          context: { company, jobTitle, date },
+                          context: { company, jobTitle, date, jd: lastJd, jobDescription: lastJd },
                           resume: fullResume,
                         }),
                       });

@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
     const prompt = [
       "You are a resume assistant.",
       "Given the target field and the user's current resume JSON context, suggest concise, high-quality content.",
+      "If a job description is provided in context.jd or context.jobDescription, tailor suggestions to align with that job's requirements, responsibilities, and relevant skills.",
+      "Be concise. For bullet lists, return up to 6 bullets and keep each bullet ≤ 160 characters.",
       "Output strictly JSON. For single-line fields use {\"text\": string}. For bullet lists use {\"bullets\": string[]}. No markdown fences.",
       `Field: ${field}`,
       "Context:",
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
           parts: [{ text: prompt }],
         },
       ],
-      generationConfig: { temperature: 0.2 },
+      generationConfig: { temperature: 0.2, maxOutputTokens: 256 },
     };
 
     const resp = await fetch(url, {
@@ -82,4 +84,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
-

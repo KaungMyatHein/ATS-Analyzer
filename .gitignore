@@ -33,3 +33,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma local artifacts
+/prisma/dev.db
+/prisma/prisma/dev.db
+/prisma/seed_parts/
+/prisma/csv_parts/
+/prisma/*.csv
