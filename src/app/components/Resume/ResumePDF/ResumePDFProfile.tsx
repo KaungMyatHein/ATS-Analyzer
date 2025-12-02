@@ -30,6 +30,8 @@ export const ResumePDFProfile = ({
   const isElegant = style === "elegant";
   const isProfessional = style === "professional";
   const isBlog = style === "blog";
+  const isModern = style === "modern";
+  const isCreative = style === "creative";
 
   const showMain = type === "all" || type === "main";
   const showSidebar = type === "all" || type === "sidebar";
@@ -184,15 +186,25 @@ export const ResumePDFProfile = ({
           <View style={{ flex: 1 }}>
             <ResumePDFText
               bold={true}
-              themeColor={themeColor}
+              themeColor={isCreative ? themeColor : undefined}
               style={{
-                fontSize: isProfessional ? "24pt" : "20pt",
+                fontSize: isProfessional ? "24pt" : isModern ? "22pt" : "20pt",
                 textAlign: isElegant ? "left" : "left",
-                textTransform: isProfessional ? "uppercase" : undefined,
+                textTransform: isProfessional || isModern ? "uppercase" : undefined,
               }}
             >
               {name}
             </ResumePDFText>
+            {isCreative && (
+              <View
+                style={{
+                  height: spacing["0.5"],
+                  width: spacing["28"],
+                  backgroundColor: themeColor,
+                  marginTop: spacing["0.5"],
+                }}
+              />
+            )}
             {summary && (
               <ResumePDFText
                 style={{

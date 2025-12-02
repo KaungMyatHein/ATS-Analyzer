@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ResumeIframeCSR } from "components/Resume/ResumeIFrame";
 import { ResumePDF } from "components/Resume/ResumePDF";
 import {
@@ -21,32 +21,9 @@ export const Resume = () => {
   const [scale, setScale] = useState(0.8);
   const resume = useAppSelector(selectResume);
   const settings = useAppSelector(selectSettings);
-  const [highlightSkills, setHighlightSkills] = useState<string[]>([]);
-  
-  // Load and refresh highlights when the page gains focus
-  // and when navigating back from analyzer
-  useEffect(() => {
-    const load = () => {
-      try {
-        const raw = localStorage.getItem("ats_matching_skills");
-        const arr = raw ? JSON.parse(raw) : [];
-        setHighlightSkills(Array.isArray(arr) ? arr.filter(Boolean) : []);
-      } catch {
-        setHighlightSkills([]);
-      }
-    };
-    load();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") load();
-    };
-    const onAtsUpdate = () => load();
-    window.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("ats_matching_skills_updated", onAtsUpdate as EventListener);
-    return () => window.removeEventListener("visibilitychange", onVisibility);
-  }, []);
   const resumeDocument = useMemo(
-    () => <ResumePDF resume={resume} settings={settings} isPDF={true} highlightSkills={highlightSkills} />,
-    [resume, settings, highlightSkills]
+    () => <ResumePDF resume={resume} settings={settings} isPDF={true} />,
+    [resume, settings]
   );
 
   useRegisterReactPDFFont();
@@ -68,7 +45,6 @@ export const Resume = () => {
                 resume={resume}
                 settings={settings}
                 isPDF={ENABLE_PDF_VIEWER}
-                highlightSkills={highlightSkills}
               />
             </ResumeIframeCSR>
           </section>

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Provider } from "react-redux";
 import { store } from "lib/redux/store";
@@ -13,6 +13,8 @@ import { usePDF } from "@react-pdf/renderer";
 import { useRegisterReactPDFFont, useRegisterReactPDFHyphenationCallback } from "components/fonts/hooks";
 import { deepClone } from "lib/deep-clone";
 import { ResumeStyleSelections } from "components/ResumeForm/ThemeForm/ResumeStyleSelections";
+import { HeartIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 
 const GaugeChartCSR = dynamic(() => import("react-gauge-chart"), { ssr: false });
 
@@ -28,6 +30,7 @@ type SavedJDEntry = {
   matchScorePhrase?: number;
   createdAt?: string;
   status?: string;
+  appliedAt?: string;
 };
 
 function normalizeResult(entry: SavedJDEntry) {
@@ -86,6 +89,50 @@ function PageBody() {
   useRegisterReactPDFHyphenationCallback(settings.fontFamily);
   const [baseResumeId, setBaseResumeId] = useState<string | null>(null);
   const [baseResumeName, setBaseResumeName] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const STATUS_OPTIONS = ["pending", "ready to apply", "applied", "interview", "offer", "rejected", "paused", "no longer available"];
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const FOLLOW_UP_DAYS = 14;
+  const [followUpOnly, setFollowUpOnly] = useState(false);
+  const needsFollowUp = (it: SavedJDEntry) => {
+    const s = (it.status || "pending").toLowerCase();
+    if (s !== "applied") return false;
+    if (!it.appliedAt) return false;
+    const appliedTs = Date.parse(it.appliedAt);
+    const ageDays = Math.floor((Date.now() - appliedTs) / (24 * 60 * 60 * 1000));
+    return Number.isFinite(appliedTs) && ageDays >= FOLLOW_UP_DAYS;
+  };
+  const filteredItems = useMemo(() => {
+    return items.filter((it) => {
+      const s = (it.status || "pending").toLowerCase();
+      const statusOk = statusFilters.length === 0 ? true : statusFilters.includes(s);
+      const followUpOk = followUpOnly ? needsFollowUp(it) : true;
+      return statusOk && followUpOk;
+    });
+  }, [items, statusFilters, followUpOnly]);
+  useEffect(() => {
+    const total = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+    if (page > total) setPage(total);
+  }, [filteredItems.length, pageSize, page]);
+
+  const FAVORITES_KEY = "open-resume-saved-job-favorites";
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FAVORITES_KEY);
+      if (raw) setFavorites(JSON.parse(raw));
+    } catch {}
+  }, []);
+  const toggleFavorite = (id: string) => {
+    setFavorites((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const handleSettingsChange = (field: GeneralSetting, value: string) => {
     dispatch(changeSettings({ field, value }));
@@ -200,8 +247,15 @@ function PageBody() {
       const a = document.createElement("a");
       a.href = url;
       const baseName = baseResumeName || (resume.profile.name || "Resume");
-      const jobName = selected?.position || selected?.company || "";
-      a.download = jobName ? `${baseName} For ${jobName}` : baseName;
+      const role = selected?.position || "";
+      const company = selected?.company || "";
+      const parts = [baseName, role, company].filter((s) => typeof s === "string" && s.trim());
+      const raw = parts.length ? parts.join(" ") : baseName;
+      const safe = raw
+        .replace(/[\/:*?"<>|]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim();
+      a.download = `${safe}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -354,45 +408,130 @@ function PageBody() {
     <main className="mx-auto max-w-6xl px-5 py-8">
       <h1 className="text-2xl font-semibold text-gray-900">Saved Jobs</h1>
       <div className="mt-6 grid gap-6 md:grid-cols-2">
-        <section>
-          <div className="space-y-3">
+      <section>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-600">Filter by status</span>
+            <button
+              className={(statusFilters.length === 0 ? "bg-blue-600 text-white " : "bg-white text-gray-700 ") + "rounded-md border px-2 py-1 text-xs hover:bg-blue-50"}
+              onClick={() => setStatusFilters([])}
+            >
+              All
+            </button>
+            {STATUS_OPTIONS.map((s) => {
+              const active = statusFilters.includes(s);
+              const label = s.toUpperCase();
+              return (
+                <button
+                  key={`f-${s}`}
+                  className={(active ? "bg-blue-600 text-white " : "bg-white text-gray-700 ") + "rounded-md border px-2 py-1 text-xs hover:bg-blue-50"}
+                  onClick={() => {
+                    setPage(1);
+                    setStatusFilters((prev) => {
+                      const set = new Set(prev);
+                      if (set.has(s)) set.delete(s);
+                      else set.add(s);
+                      return Array.from(set);
+                    });
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            <span className="ml-2 h-4 w-px bg-gray-200" />
+            <button
+              className={(followUpOnly ? "bg-amber-500 text-white " : "bg-white text-gray-700 ") + "rounded-md border px-2 py-1 text-xs hover:bg-amber-50"}
+              onClick={() => {
+                setPage(1);
+                setFollowUpOnly((v) => !v);
+              }}
+              title={`Show applied ≥ ${FOLLOW_UP_DAYS} days with no response`}
+            >
+              Needs follow-up (≥ {FOLLOW_UP_DAYS}d)
+            </button>
+          </div>
             {items.length === 0 && (
               <div className="rounded-md border border-gray-200 p-4 text-sm text-gray-500">No saved jobs yet</div>
             )}
-            {items.map((item) => {
-              const score = typeof item.matchScore === "number" ? Math.round(item.matchScore) : (typeof item.matchScoreFlex === "number" ? Math.round(item.matchScoreFlex) : 0);
-              const status = (item.status || "Pending").toUpperCase();
-              const isSelected = selected?.id === item.id;
-              return (
-                <div
-                  key={item.id}
-                  className={(isSelected ? "border-blue-300 " : "border-gray-200 ") + "rounded-md border bg-white p-3 hover:shadow-sm"}
-                  onClick={() => setSelected(item)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{item.company} — {item.position}</div>
-                      <div className="mt-0.5 text-xs text-blue-600 break-all">{item.link || "No link"}</div>
-                      <div className="mt-2 text-[11px] font-medium text-gray-600">Status: <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-gray-800">{status}</span></div>
+            {(() => {
+              const start = (page - 1) * pageSize;
+              const end = start + pageSize;
+              const visibleItems = filteredItems.slice(start, end);
+              return visibleItems.map((item) => {
+                const score = typeof item.matchScore === "number" ? Math.round(item.matchScore) : (typeof item.matchScoreFlex === "number" ? Math.round(item.matchScoreFlex) : 0);
+                const status = (item.status || "Pending").toUpperCase();
+                const isSelected = selected?.id === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className={(isSelected ? "border-blue-300 " : "border-gray-200 ") + "rounded-md border bg-white p-3 hover:shadow-sm"}
+                    onClick={() => setSelected(item)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900">{item.company} — {item.position}</div>
+                        <div className="mt-2 text-[11px] font-medium text-gray-600">Status: <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-gray-800">{status}</span></div>
+                      </div>
+                      <div className="ml-4 flex items-center gap-2"> 
+                        <Speedometer score={Number(score || 0)} size={140} />
+                        <button
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 hover:bg-gray-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(item.id);
+                          }}
+                          aria-pressed={Boolean(favorites[item.id])}
+                          title={favorites[item.id] ? "Unfavorite" : "Favorite"}
+                        >
+                          {favorites[item.id] ? (
+                            <HeartSolid className="h-5 w-5 text-red-600" />
+                          ) : (
+                            <HeartIcon className="h-5 w-5 text-gray-500" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="ml-4"> 
-                      <Speedometer score={Number(score || 0)} size={140} />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    <div
-                      className="flex items-center gap-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <label className="text-[11px] text-gray-600">Status</label>
-                      <select
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
-                        value={(item.status || "Pending").toLowerCase()}
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <div
+                        className="flex items-center gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <label className="text-[11px] text-gray-600">Status</label>
+                        <select
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
+                          value={(item.status || "Pending").toLowerCase()}
                         onChange={async (e) => {
                           const val = e.target.value;
                           const updated = val;
                           setItems((prev) => prev.map((it) => (it.id === item.id ? ({ ...it, status: updated } as any) : it)));
                           setSelected((prev) => (prev && prev.id === item.id ? ({ ...prev, status: updated } as any) : prev));
+                          try {
+                            if (updated === "applied") {
+                              const key = "open-resume-applied-days";
+                              const keyCounts = "open-resume-applied-days-counts";
+                              const today = new Date();
+                              const y = today.getFullYear();
+                              const m = String(today.getMonth() + 1).padStart(2, "0");
+                              const d = String(today.getDate()).padStart(2, "0");
+                              const t = `${y}-${m}-${d}`;
+                              let arr: string[] = [];
+                              try {
+                                const raw = localStorage.getItem(key);
+                                if (raw) arr = JSON.parse(raw) || [];
+                              } catch {}
+                              if (!arr.includes(t)) {
+                                arr.push(t);
+                                try { localStorage.setItem(key, JSON.stringify(arr)); } catch {}
+                              }
+                              try {
+                                const rawCounts = localStorage.getItem(keyCounts);
+                                const map = rawCounts ? JSON.parse(rawCounts) || {} : {};
+                                map[t] = (map[t] || 0) + 1;
+                                localStorage.setItem(keyCounts, JSON.stringify(map));
+                              } catch {}
+                            }
+                          } catch {}
                           try {
                             await fetch("/api/ats/saved-jds", {
                               method: "PATCH",
@@ -401,39 +540,104 @@ function PageBody() {
                             });
                           } catch {}
                         }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="applied">Applied</option>
-                        <option value="interview">Interview</option>
-                        <option value="offer">Offer</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="paused">Paused</option>
-                      </select>
-                    </div>
-                    <button
-                      className="rounded-md border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50"
-                      onClick={async () => {
-                        const ok = window.confirm("Delete this saved job?");
-                        if (!ok) return;
-                        try {
-                          const resp = await fetch(`/api/ats/saved-jds?id=${encodeURIComponent(item.id)}`, { method: "DELETE" });
-                          const json = await resp.json();
-                          if (resp.ok) {
-                            setItems((prev) => prev.filter((it) => it.id !== item.id));
-                            if (selected?.id === item.id) {
-                              const next = (prev => prev.find((it) => it.id !== item.id) || null)(items);
-                              setSelected(next);
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="ready to apply">Ready to apply</option>
+                          <option value="applied">Applied</option>
+                          <option value="interview">Interview</option>
+                          <option value="offer">Offer</option>
+                          <option value="rejected">Rejected</option>
+                          <option value="paused">Paused</option>
+                          <option value="no longer available">No longer available</option>
+                        </select>
+                      </div>
+                      {item.link ? (
+                        <a
+                          href={(item.link || "").startsWith("http") ? (item.link as string) : `https://${item.link}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Apply
+                        </a>
+                      ) : (
+                        <button
+                          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white opacity-50 cursor-not-allowed"
+                          disabled
+                        >
+                          Apply
+                        </button>
+                      )}
+                      <button
+                        className="rounded-md border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50"
+                        onClick={async () => {
+                          const ok = window.confirm("Delete this saved job?");
+                          if (!ok) return;
+                          try {
+                            const resp = await fetch(`/api/ats/saved-jds?id=${encodeURIComponent(item.id)}`, { method: "DELETE" });
+                            const json = await resp.json();
+                            if (resp.ok) {
+                              setItems((prev) => prev.filter((it) => it.id !== item.id));
+                              if (selected?.id === item.id) {
+                                const next = (prev => prev.find((it) => it.id !== item.id) || null)(items);
+                                setSelected(next);
+                              }
                             }
-                          }
-                        } catch {}
-                      }}
+                          } catch {}
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+            {filteredItems.length > 0 && (
+              <div className="mt-2 flex items-center justify-between">
+                <div className="text-xs text-gray-600">
+                  {(() => {
+                    const start = (page - 1) * pageSize;
+                    const end = Math.min(start + pageSize, filteredItems.length);
+                    const from = filteredItems.length ? start + 1 : 0;
+                    return `Showing ${from}–${end} of ${filteredItems.length}`;
+                  })()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600">Rows per page</label>
+                  <select
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPage(1);
+                      setPageSize(Number(e.target.value));
+                    }}
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                  </select>
+                  <div className="ml-2 flex items-center gap-2">
+                    <button
+                      className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 disabled:opacity-50"
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      disabled={page <= 1}
                     >
-                      Delete
+                      Prev
+                    </button>
+                    <div className="text-xs text-gray-600">Page {page} of {Math.max(1, Math.ceil(filteredItems.length / pageSize))}</div>
+                    <button
+                      className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 disabled:opacity-50"
+                      onClick={() => setPage(Math.min(Math.max(1, Math.ceil(filteredItems.length / pageSize)), page + 1))}
+                      disabled={page >= Math.max(1, Math.ceil(filteredItems.length / pageSize))}
+                    >
+                      Next
                     </button>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         </section>
         <section>

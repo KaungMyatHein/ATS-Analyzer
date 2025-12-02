@@ -20,6 +20,8 @@ export const ResumePDFSection = ({
   const isProfessional = resumeStyle === "professional";
   const isElegant = resumeStyle === "elegant";
   const isBlog = resumeStyle === "blog";
+  const isModern = resumeStyle === "modern";
+  const isCreative = resumeStyle === "creative";
 
   return (
     <View
@@ -27,6 +29,9 @@ export const ResumePDFSection = ({
         ...styles.flexCol,
         gap: spacing["2"],
         marginTop: spacing["5"],
+        ...(isCreative
+          ? { borderLeft: `3pt solid ${themeColor || DEFAULT_FONT_COLOR}`, paddingLeft: spacing["3"] }
+          : {}),
         ...style,
       }}
     >
@@ -42,7 +47,7 @@ export const ResumePDFSection = ({
             marginBottom: isProfessional ? spacing["2"] : isBlog ? spacing["3"] : undefined,
           }}
         >
-          {themeColor && !isProfessional && !isElegant && (
+          {themeColor && !isProfessional && !isElegant && !isModern && !isCreative && (
             <View
               style={{
                 height: "3.75pt",
@@ -57,9 +62,19 @@ export const ResumePDFSection = ({
             style={{
               fontWeight: "bold",
               letterSpacing: "0.3pt", // tracking-wide -> 0.025em * 12 pt = 0.3pt
-              textTransform: isProfessional ? "uppercase" : undefined,
-              fontSize: isProfessional ? "12pt" : isBlog ? "14pt" : undefined,
+              textTransform: isProfessional || isModern ? "uppercase" : undefined,
+              fontSize: isProfessional ? "12pt" : isBlog ? "14pt" : isModern ? "12pt" : undefined,
               fontFamily: isBlog ? "Helvetica" : undefined,
+              ...(isModern
+                ? {
+                    backgroundColor: themeColor,
+                    color: "#ffffff",
+                    paddingLeft: spacing["1"],
+                    paddingRight: spacing["1"],
+                    paddingTop: spacing["0.5"],
+                    paddingBottom: spacing["0.5"],
+                  }
+                : {}),
             }}
             debug={DEBUG_RESUME_PDF_FLAG}
           >

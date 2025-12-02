@@ -19,6 +19,7 @@ import { ThemeForm } from "components/ResumeForm/ThemeForm";
 import { CustomForm } from "components/ResumeForm/CustomForm";
 import { FlexboxSpacer } from "components/FlexboxSpacer";
 import { cx } from "lib/cx";
+import { loadStateFromLocalStorage } from "lib/redux/local-storage";
 
 const formTypeToComponent: { [type in ShowForm]: () => JSX.Element } = {
   workExperiences: WorkExperiencesForm,
@@ -30,6 +31,7 @@ const formTypeToComponent: { [type in ShowForm]: () => JSX.Element } = {
 
 export const ResumeForm = () => {
   useSaveStateToLocalStorageOnChange();
+  useSetInitialStore();
 
   const dispatch = useAppDispatch();
   const resume = useAppSelector(selectResume);
@@ -46,18 +48,22 @@ export const ResumeForm = () => {
         const json = await res.json();
         const list = json.resumes || [];
         if (!list.length) {
-          try {
-            dispatch(setResume(initialResumeState));
-            dispatch(setSettings(initialSettings));
-            localStorage.removeItem("open-resume-state");
-          } catch {}
+          const stored = loadStateFromLocalStorage() as any;
+          const initResume = stored?.resume ? stored.resume : resume;
+          const initSettings = stored?.settings ? stored.settings : settings;
+          if (stored?.resume) {
+            try { dispatch(setResume(initResume)); } catch {}
+          }
+          if (stored?.settings) {
+            try { dispatch(setSettings(initSettings)); } catch {}
+          }
           const createRes = await fetch("/api/resumes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              name: resume.profile.name || "Untitled Resume",
-              data: resume,
-              settings: { ...(settings as any), isBase: true },
+              name: (initResume?.profile?.name) || "Untitled Resume",
+              data: initResume,
+              settings: { ...(initSettings as any), isBase: true },
             }),
           });
           const createJson = await createRes.json();

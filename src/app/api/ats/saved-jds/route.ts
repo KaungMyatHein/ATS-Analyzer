@@ -7,6 +7,25 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
+      if (process.env.NODE_ENV !== "production") {
+        const items = await prisma.savedJob.findMany({ orderBy: { createdAt: "desc" } });
+        const mapped = items.map((it) => ({
+          id: it.id,
+          company: it.company,
+          position: it.position,
+          link: it.link || "",
+          jd: it.jd,
+          result: ((): any => { try { return JSON.parse(it.result || "{}"); } catch { return {}; } })(),
+          matchScore: typeof it.matchScore === "number" ? it.matchScore : undefined,
+          matchScoreFlex: typeof it.matchScoreFlex === "number" ? it.matchScoreFlex : undefined,
+          matchScorePhrase: typeof it.matchScorePhrase === "number" ? it.matchScorePhrase : undefined,
+          status: it.status || "pending",
+          variantResumeId: it.variantResumeId || undefined,
+          createdAt: it.createdAt.toISOString(),
+          appliedAt: (it as any).appliedAt ? (it as any).appliedAt.toISOString() : (it.status === "applied" ? it.updatedAt.toISOString() : undefined),
+        }));
+        return NextResponse.json({ items: mapped });
+      }
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const items = await prisma.savedJob.findMany({
@@ -26,6 +45,7 @@ export async function GET(req: NextRequest) {
       status: it.status || "pending",
       variantResumeId: it.variantResumeId || undefined,
       createdAt: it.createdAt.toISOString(),
+      appliedAt: (it as any).appliedAt ? (it as any).appliedAt.toISOString() : (it.status === "applied" ? it.updatedAt.toISOString() : undefined),
     }));
     return NextResponse.json({ items: mapped });
   } catch (error: any) {
@@ -82,6 +102,7 @@ export async function POST(req: NextRequest) {
       matchScorePhrase: created.matchScorePhrase ?? undefined,
       status: created.status || "pending",
       createdAt: created.createdAt.toISOString(),
+      appliedAt: (created as any).appliedAt ? (created as any).appliedAt.toISOString() : undefined,
     } }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
@@ -154,7 +175,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof matchScore === "number") data.matchScore = Math.round(matchScore);
     if (typeof matchScoreFlex === "number") data.matchScoreFlex = Math.round(matchScoreFlex);
     if (typeof matchScorePhrase === "number") data.matchScorePhrase = Math.round(matchScorePhrase);
-    if (typeof status === "string") data.status = status.trim();
+    if (typeof status === "string") data.status = status.trim().toLowerCase();
 
     const updated = await prisma.savedJob.updateMany({
       where: { id, userId: session.user.id },

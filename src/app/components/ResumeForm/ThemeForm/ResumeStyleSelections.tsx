@@ -19,6 +19,8 @@ export const ResumeStyleSelections = ({
         { name: "Professional", value: "professional" },
         { name: "Elegant", value: "elegant" },
         { name: "Blog", value: "blog" },
+        { name: "Modern", value: "modern" },
+        { name: "Creative", value: "creative" },
     ];
 
     return (

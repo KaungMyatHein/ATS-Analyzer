@@ -6,7 +6,7 @@ export interface Settings {
   fontFamily: string;
   fontSize: string;
   documentSize: string;
-  style: "standard" | "professional" | "elegant" | "blog";
+  style: "standard" | "professional" | "elegant" | "blog" | "modern" | "creative";
   formToShow: {
     workExperiences: boolean;
     educations: boolean;

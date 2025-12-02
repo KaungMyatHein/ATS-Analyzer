@@ -12,7 +12,7 @@ import {
   changeShowBulletPoints,
   selectThemeColor,
 } from "lib/redux/settingsSlice";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export const SkillsForm = () => {
   const skills = useAppSelector(selectSkills);
@@ -24,6 +24,13 @@ export const SkillsForm = () => {
   const fullResume = useAppSelector(selectResume);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState("");
+  const [categoryText, setCategoryText] = useState<string[]>(categories.map((c) => (Array.isArray(c.skills) ? c.skills.join(", ") : "")));
+
+  useEffect(() => {
+    if (categoryText.length !== categories.length) {
+      setCategoryText(categories.map((c) => (Array.isArray(c.skills) ? c.skills.join(", ") : "")));
+    }
+  }, [categories.length]);
 
   const handleSkillsChange = (field: "descriptions" | "categories" | "featuredSkills", value: any) => {
     dispatch(changeSkills({ field, value } as any));
@@ -67,6 +74,32 @@ export const SkillsForm = () => {
     handleSkillsChange("categories", newCategories);
   };
 
+  const parseCommaSeparatedWithQuotes = (input: string) => {
+    const out: string[] = [];
+    let buf = "";
+    let inQuotes = false;
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+      if (ch === '"') {
+        if (inQuotes && input[i + 1] === '"') {
+          buf += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        const token = buf.trim();
+        if (token) out.push(token);
+        buf = "";
+      } else {
+        buf += ch;
+      }
+    }
+    const last = buf.trim();
+    if (last) out.push(last);
+    return out;
+  };
+
   return (
     <Form form={form}>
       <div className="col-span-full grid grid-cols-6 gap-3">
@@ -99,13 +132,19 @@ export const SkillsForm = () => {
             </div>
 
             <div className="mb-3">
-              <label className="mb-1 block text-xs font-medium text-gray-700">Skills (comma-separated)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Skills (comma-separated; quotes optional for multi-word)</label>
               <input
                 type="text"
-                placeholder="e.g., Python, JavaScript, TypeScript"
-                value={cat.skills.join(",")}
+                placeholder="e.g., Python, User Experience, Design Systems"
+                value={categoryText[catIdx] ?? (cat.skills.join(", ") || "")}
                 onChange={(e) => {
-                  const skillsArray = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+                  const value = e.target.value;
+                  setCategoryText((prev) => {
+                    const next = [...prev];
+                    next[catIdx] = value;
+                    return next;
+                  });
+                  const skillsArray = parseCommaSeparatedWithQuotes(value);
                   updateCategory(catIdx, "skills", skillsArray);
                 }}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"

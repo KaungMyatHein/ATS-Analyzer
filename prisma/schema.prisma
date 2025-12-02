@@ -51,6 +51,7 @@ model SavedJob {
   matchScoreFlex   Int?
   matchScorePhrase Int?
   status           String   @default("pending")
+  appliedAt        DateTime? @map("applied_at")
   variantResumeId  String?  @map("variant_resume_id")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

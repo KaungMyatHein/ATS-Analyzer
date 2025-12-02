@@ -70,7 +70,21 @@ function SavedJDList({ onSelect }: { onSelect: (entry: SavedJDEntry) => void }) 
         >
           <div>
             <div className="text-sm font-medium text-gray-800">{item.company} — {item.position}</div>
-            <div className="text-xs text-gray-500 truncate">{item.link || "No link"}</div>
+            <div className="mt-1 flex items-center gap-2">
+              {item.link ? (
+                <a
+                  href={(item.link || "").startsWith("http") ? (item.link as string) : `https://${item.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Apply
+                </a>
+              ) : (
+                <span className="text-xs text-gray-500">No link</span>
+              )}
+            </div>
           </div>
           <div className="text-xs text-gray-700">Score: {typeof item.matchScore === "number" ? Math.round(item.matchScore) : (typeof item.matchScoreFlex === "number" ? Math.round(item.matchScoreFlex) : "—")}</div>
         </button>
